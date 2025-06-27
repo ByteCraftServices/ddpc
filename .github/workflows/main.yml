@@ -18,8 +18,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "auto-release-${{ github.event.client_payload.source }}-${{ github.run_number }}"
-          name: "Auto Release from ${{ github.event.client_payload.source }}"
+          tag_name: "${{ github.event.client_payload.version }}"
+          name: "Release ${{ github.event.client_payload.version }}"
           body: "Release triggered by push to ${{ github.event.client_payload.source }}"
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
