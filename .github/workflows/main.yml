@@ -7,19 +7,19 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout main repository
+      - name: Checkout repository with submodules
         uses: actions/checkout@v3
         with:
           submodules: true
-          token: ${{ secrets.PERSONAL_TOKEN }}  # ersetzt GITHUB_TOKEN
+          token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Create release
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "auto-release-${{ github.event.client_payload.source }}-${{ github.sha }}"
+          tag_name: "auto-release-${{ github.event.client_payload.source }}-${{ github.run_number }}"
           name: "Auto Release from ${{ github.event.client_payload.source }}"
-          body: |
-            Release triggered by push to ${{ github.event.client_payload.source }}
+          body: "Release triggered by push to ${{ github.event.client_payload.source }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}  # auch hier!
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
