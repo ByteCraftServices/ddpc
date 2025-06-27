@@ -1,25 +1,62 @@
-name: Create release on subrepo update
+name: Auto release with patch versioning
 
 on:
   repository_dispatch:
     types: [subrepo-updated]
+
+permissions:
+  contents: write  # notwendig für Tagging und Releases
 
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository with submodules
+      - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          submodules: true
+          fetch-depth: 0  # wichtig: damit alle Tags verfügbar sind
           token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+      - name: Determine next patch version
+        id: version
+        run: |
+          base_version="${{ github.event.client_payload.version }}"
+          base="${base_version}."
+          
+          # Alle Tags holen, die mit z. B. "v1.4." beginnen
+          tags=$(git tag -l "${base}*")
+          
+          max_patch=-1
+          for tag in $tags; do
+            patch=${tag##${base}}
+            if [[ "$patch" =~ ^[0-9]+$ ]] && (( patch > max_patch )); then
+              max_patch=$patch
+            fi
+          done
+
+          next_patch=$((max_patch + 1))
+          next_version="${base}${next_patch}"
+          
+          echo "Next version: $next_version"
+          echo "tag=$next_version" >> $GITHUB_OUTPUT
+
+      - name: Create Git tag
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ github.event.client_payload.version }}"
-          name: "Release ${{ github.event.client_payload.version }}"
-          body: "Release triggered by push to ${{ github.event.client_payload.source }}"
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Release ${{ steps.version.outputs.tag }}"
+          body: |
+            Triggered by push to ${{ github.event.client_payload.source }}
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
