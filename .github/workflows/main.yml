@@ -1,0 +1,24 @@
+name: Create release on subrepo update
+
+on:
+  repository_dispatch:
+    types: [subrepo-updated]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "auto-release-${{ github.event.client_payload.source }}-${{ github.sha }}"
+          name: "Auto Release from ${{ github.event.client_payload.source }}"
+          body: |
+            Release triggered by push to ${{ github.event.client_payload.source }}
+
