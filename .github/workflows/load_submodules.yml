@@ -16,5 +16,5 @@ jobs:
       with:
         submodules: recursive  # Das sorgt dafür, dass Submodule automatisch geholt werden
         fetch-depth: 0         # Voller Clone, damit Submodule richtig funktionieren
-
+        token: ${{ secrets.PERSONAL_TOKEN }}  # Hier dein PAT Secret verwenden
     # Hier kannst du dann weitere Schritte hinzufügen, z.B. Build, Tests, etc.
