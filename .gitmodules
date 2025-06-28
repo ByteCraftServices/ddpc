@@ -1,0 +1,11 @@
+[submodule "src/assistant"]
+    path = src/assistant
+    url = git@github.com:ByteCraftServices/ddpc.assistant.git
+
+[submodule "src/scripts"]
+    path = src/scripts
+    url = git@github.com:ByteCraftServices/ddpc.scripts.git
+
+[submodule "src/res"]
+    path = src/res
+    url = git@github.com:ByteCraftServices/ddpc.res.git
