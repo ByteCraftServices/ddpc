@@ -1,11 +1,9 @@
-[submodule "src/assistant"]
-    path = src/assistant
-    url = git@github.com:ByteCraftServices/ddpc.assistant.git
-
-[submodule "src/scripts"]
-    path = src/scripts
-    url = git@github.com:ByteCraftServices/ddpc.scripts.git
-
-[submodule "src/res"]
-    path = src/res
-    url = git@github.com:ByteCraftServices/ddpc.res.git
+[submodule "scripts"]
+	path = scripts
+	url = https://@github.com/ByteCraftServices/ddpc.scripts.git
+[submodule "res"]
+	path = res
+	url = https://@github.com/ByteCraftServices/ddpc.res.git
+[submodule "assistant"]
+	path = assistant
+	url = https://@github.com/ByteCraftServices/ddpc.assistant.git
