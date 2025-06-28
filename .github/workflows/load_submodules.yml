@@ -1,0 +1,20 @@
+name: Checkout with Submodules
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository including submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive  # Das sorgt dafür, dass Submodule automatisch geholt werden
+        fetch-depth: 0         # Voller Clone, damit Submodule richtig funktionieren
+
+    # Hier kannst du dann weitere Schritte hinzufügen, z.B. Build, Tests, etc.
