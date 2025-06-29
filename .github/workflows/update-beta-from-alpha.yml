@@ -1,0 +1,40 @@
+name: Create Beta Release on Merge to Beta
+
+on:
+  push:
+    branches:
+      - beta
+
+jobs:
+  create-beta-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to get full git history + tags
+
+      - name: Get latest version tag
+        id: get_version
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          PATCH=$((PATCH + 1))
+          NEXT_VERSION="v$MAJOR.$MINOR.$PATCH-beta"
+          echo "RELEASE_TAG=$NEXT_VERSION" >> $GITHUB_ENV
+
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
+          body: |
+            Automatic beta release created from push to beta.
+            Version bumped from ${{ steps.get_version.outputs.LATEST_TAG }}.
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
