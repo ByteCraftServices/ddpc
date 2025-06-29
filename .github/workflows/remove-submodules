@@ -1,0 +1,42 @@
+name: Remove Submodules
+
+on:
+  workflow_dispatch:  # Manuell auslösbar
+
+jobs:
+  remove-submodules:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DDPC_TOKEN }}
+
+      - name: Remove submodules
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Liste der Submodule (hier Beispiel: res, scripts, config)
+          SUBMODULES=("res" "scripts" "config")
+
+          for sub in "${SUBMODULES[@]}"; do
+            echo "Removing submodule: $sub"
+
+            # Entferne Submodule-Verzeichnis
+            rm -rf "$sub"
+
+            # Entferne aus Git-Index
+            git rm -f "$sub" || true
+
+            # Entferne aus .gitmodules
+            sed -i "/\[submodule \"$sub\"\]/,/^$/d" .gitmodules || true
+
+            # Entferne aus .git/config
+            git config -f .git/config --remove-section "submodule.$sub" || true
+          done
+
+          git add .gitmodules || true
+          git commit -am "Remove submodules: ${SUBMODULES[*]}" || echo "No changes to commit"
+          git push origin HEAD
