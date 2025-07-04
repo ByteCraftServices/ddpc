@@ -63,4 +63,4 @@ jobs:
           gh release create DEV full_source.zip \
             --title "$release_name" \
             --notes "Automatisch generiertes DEV Release vom $timestamp" \
-            --clobber
+  
