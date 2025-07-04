@@ -1,0 +1,15 @@
+- name: Cleanup Submodules and Repo
+  run: |
+    echo "🧹 Cleaning up submodules and repo"
+    git submodule deinit -f --all
+    rm -rf .git/modules
+    git clean -fdx
+
+- name: Checkout fresh with submodules
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+    submodules: recursive
+    token: ${{ secrets.PERSONAL_TOKEN }}
+
+# Danach dein weiterer Workflow, der Branch auf dev setzt etc.
