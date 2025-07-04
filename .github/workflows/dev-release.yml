@@ -11,71 +11,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository with Submodules
+      - name: 📥 Checkout Repository with Submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Initialize and switch submodules to 'dev' branch (with logging)
+      - name: 📋 Show All Submodules
         run: |
-          echo "🔄 Initializing submodules..."
+          echo "🔍 Listing all submodules:"
+          git config --file .gitmodules --get-regexp path | while read -r key path; do
+            url=$(git config --file .gitmodules --get "${key/path/url}")
+            echo " - $path ($url)"
+          done
+
+      - name: 🔄 Switch all submodules to 'dev' branch (recursive)
+        run: |
           git submodule update --init --recursive
 
-          echo "🔍 Fetching and switching submodules to 'dev' branch..."
-
-          failed=0
-
           git submodule foreach --recursive '
-            echo ""
-            echo "📦 Submodule: $name"
-            git remote -v
+            echo "🔧 Updating submodule: $name"
             git fetch origin
-
-            if git show-ref --verify --quiet refs/remotes/origin/dev; then
-              echo "✅ dev branch found in $name. Checking out..."
+            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
               git checkout dev
               git pull origin dev
-              echo "✅ Switched to dev branch in $name"
+              echo "✅ Checked out dev branch for $name"
             else
-              echo "❌ dev branch not found for submodule $name"
-              failed=1
+              echo "⚠️ Branch dev not found for submodule $name"
             fi
           '
 
-          if [ "$failed" -ne 0 ]; then
-            echo "❗ One or more submodules failed to switch to the dev branch."
-            exit 1
-          fi
-
-      - name: Commit updated submodule references
+      - name: 💾 Commit updated submodule references (if any)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if [[ -n $(git status --porcelain) ]]; then
             git add .
             git commit -m "Update submodules to dev branches"
+            echo "✅ Changes committed."
           else
-            echo "No changes to commit"
+            echo "ℹ️ No changes to commit."
           fi
 
-      - name: Delete existing DEV release
+      - name: 🗑️ Delete existing DEV release (if exists)
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
         run: |
           if gh release view DEV &>/dev/null; then
-            echo "🗑️ Deleting existing DEV release..."
+            echo "🧹 Deleting existing DEV release..."
             gh release delete DEV --yes
           else
-            echo "ℹ️ No existing DEV release found."
-          fi
-
-      - name: Create ZIP with full source including submodules
-        run: |
-          timestamp=$(TZ=Europe/Vienna date +"%Y%m%d_%H%M%S")
-          echo "Using timestamp: $timestamp"
-          echo "$timestamp" > release_timestamp.txt
-
-          mkdir package
-          rsync -a --
+            echo "ℹ️ No ex
