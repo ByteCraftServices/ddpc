@@ -21,9 +21,9 @@ jobs:
       - name: Switch submodules to 'dev' branch
         run: |
           git submodule foreach '
+            set -e
             echo "Switching $name to dev branch"
-            git fetch origin dev
-            if git show-ref --verify --quiet refs/remotes/origin/dev; then
+            if git fetch origin dev && git show-ref --verify --quiet refs/remotes/origin/dev; then
               git checkout dev
               git pull origin dev
             else
@@ -35,8 +35,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Update submodules to dev branches" || echo "No changes to commit"
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            git commit -m "Update submodules to dev branches"
+          else
+            echo "No changes to commit"
+          fi
 
       - name: Delete existing DEV release
         env:
@@ -49,15 +53,26 @@ jobs:
             echo "No existing DEV release found."
           fi
 
+      - name: Flatten submodules into main repo
+        run: |
+          git submodule foreach '
+            cd $toplevel &&
+            rm -rf $name &&
+            cp -r $sm_path $name
+          '
+
       - name: Create ZIP with full source including submodules
         run: |
-          zip -r ddpc_alpha.zip . -x '*.git*'
+          timestamp=$(TZ=Europe/Vienna date +"%Y%m%d_%H%M%S")
+          echo "Using timestamp: $timestamp"
+          echo "$timestamp" > release_timestamp.txt  # Save it for next step
+          zip -r ddpc_alpha.zip . -x '*.git*' '*.github*' '*.vscode*' '*node_modules*'
 
       - name: Create new DEV release and upload ZIP
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
         run: |
-          timestamp=$(date +"%Y%m%d_%H%M%S")
+          timestamp=$(cat release_timestamp.txt)
           release_name="alpha_${timestamp}"
           echo "Creating release: $release_name"
           gh release create DEV ddpc_alpha.zip \
