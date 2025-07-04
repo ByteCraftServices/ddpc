@@ -1,58 +1,82 @@
-name: Dev Release with Private Submodules
+name: DEV Release Automation
 
 on:
-  workflow_dispatch:    # Manuelle Ausführung via GitHub UI möglich
   push:
     branches:
-      - dev
+      - alpha
+  workflow_dispatch:
 
 jobs:
-  dev_release:
+  manage-release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout main repository without submodules
+      - name: Checkout Repository with Submodules
         uses: actions/checkout@v4
         with:
+          submodules: recursive
           fetch-depth: 0
-          submodules: false
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Patch .gitmodules URLs with token
+      - name: Sync and update submodules
         run: |
-          echo "🔧 Patching .gitmodules submodule URLs with token"
-          git config -f .gitmodules --get-regexp url | while read key url; do
-            new_url=${url/https:\/\/github.com/https:\/\/x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com}
-            git config -f .gitmodules "$key" "$new_url"
-            echo "Patched $key to $new_url"
-          done
           git submodule sync --recursive
+          git submodule update --init --recursive
 
-      - name: Init and update all submodules recursively
+      - name: Switch submodules to 'dev' branch
         run: |
-          echo "📦 Initializing and updating all submodules recursively"
-          git submodule update --init --recursive --depth=1
-
-      - name: Checkout 'dev' branch in all submodules
-        run: |
-          echo "🔄 Switching all submodules to 'dev' branch if exists"
-          git submodule foreach --recursive '
-            echo "Entering submodule: $name"
-            git fetch origin dev || echo "Fetch failed for $name"
+          git submodule foreach '
+            echo "Switching $name to dev branch"
+            git fetch origin dev
             if git show-ref --verify --quiet refs/remotes/origin/dev; then
               git checkout dev
               git pull origin dev
-              echo "✅ $name switched to dev"
             else
-              echo "⚠️ $name has no dev branch"
+              echo "Branch dev not found in $name"
             fi
           '
 
-      - name: Show submodule directories and contents
+      - name: Commit updated submodule references
         run: |
-          echo "📁 Root repo files:"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update submodules to dev branches" || echo "No changes to commit"
+
+      - name: Debug: List submodules and contents
+        run: |
+          echo "Submodule status:"
+          git submodule status
+          echo "Top-level directory listing:"
           ls -la
-          for dir in $(git config -f .gitmodules --name-only --get-regexp path | sed 's/\.path//'); do
-            echo "Contents of submodule '$dir':"
-            ls -la $dir || echo "$dir directory missing"
+          echo "Contents of each submodule:"
+          for dir in */; do
+            echo "== $dir =="
+            ls -la "$dir"
           done
+
+      - name: Delete existing DEV release
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          if gh release view DEV &>/dev/null; then
+            echo "Deleting existing DEV release..."
+            gh release delete DEV --yes
+          else
+            echo "No existing DEV release found."
+          fi
+
+      - name: Create ZIP with full source including submodules
+        run: |
+          zip -r full_source.zip . -x '*.git*'
+
+      - name: Create new DEV release and upload ZIP
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          timestamp=$(date +"%Y%m%d_%H%M%S")
+          release_name="alpha_${timestamp}"
+          echo "Creating release: $release_name"
+          gh release create DEV full_source.zip \
+            --title "$release_name" \
+            --notes "Automatisch generiertes DEV Release vom $timestamp"
