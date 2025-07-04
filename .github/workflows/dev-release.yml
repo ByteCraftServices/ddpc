@@ -60,7 +60,7 @@ jobs:
           timestamp=$(date +"%Y%m%d_%H%M%S")
           release_name="alpha_${timestamp}"
           echo "Creating release: $release_name"
-          gh release create DEV full_source.zip \
+          gh release create DEV ddpc_alpha.zip \
             --title "$release_name" \
             --notes "Automatisch generiertes DEV Release vom $timestamp" \
   
