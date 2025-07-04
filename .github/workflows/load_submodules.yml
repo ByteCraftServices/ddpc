@@ -1,45 +1,58 @@
-name: CI with private submodules
+name: Dev Release with Private Submodules
 
 on:
+  workflow_dispatch:    # Manuelle Ausführung via GitHub UI möglich
   push:
     branches:
       - dev
-  pull_request:
 
 jobs:
-  build:
+  dev_release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout main repo (no submodules)
+      - name: Checkout main repository without submodules
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # Voller Clone nötig für Submodules
-          submodules: false       # Nicht automatisch auschecken
+          fetch-depth: 0
+          submodules: false
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Update submodule URLs to use token auth
+      - name: Patch .gitmodules URLs with token
         run: |
-          echo "🔧 Adjusting submodule URLs in .gitmodules"
+          echo "🔧 Patching .gitmodules submodule URLs with token"
           git config -f .gitmodules --get-regexp url | while read key url; do
-            echo "🔗 Old URL: $url"
             new_url=${url/https:\/\/github.com/https:\/\/x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com}
-            echo "🔗 New URL: $new_url"
             git config -f .gitmodules "$key" "$new_url"
+            echo "Patched $key to $new_url"
           done
           git submodule sync --recursive
 
-      - name: Initialize and update all submodules recursively
+      - name: Init and update all submodules recursively
         run: |
-          echo "📦 Initializing and updating submodules..."
+          echo "📦 Initializing and updating all submodules recursively"
           git submodule update --init --recursive --depth=1
 
-      - name: Verify submodules are checked out
+      - name: Checkout 'dev' branch in all submodules
         run: |
-          echo "📁 Listing root repo and submodules content"
-          ls -la
-          ls -la scripts
-          ls -la res
-          ls -la assistant
+          echo "🔄 Switching all submodules to 'dev' branch if exists"
+          git submodule foreach --recursive '
+            echo "Entering submodule: $name"
+            git fetch origin dev || echo "Fetch failed for $name"
+            if git show-ref --verify --quiet refs/remotes/origin/dev; then
+              git checkout dev
+              git pull origin dev
+              echo "✅ $name switched to dev"
+            else
+              echo "⚠️ $name has no dev branch"
+            fi
+          '
 
-      # Hier können weitere Build- oder Test-Schritte folgen
+      - name: Show submodule directories and contents
+        run: |
+          echo "📁 Root repo files:"
+          ls -la
+          for dir in $(git config -f .gitmodules --name-only --get-regexp path | sed 's/\.path//'); do
+            echo "Contents of submodule '$dir':"
+            ls -la $dir || echo "$dir directory missing"
+          done
