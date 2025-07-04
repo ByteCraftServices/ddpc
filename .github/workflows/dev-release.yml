@@ -18,28 +18,20 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Init & update all submodules (fallback safety)
+      - name: Switch submodules to 'dev' branch (recursive)
         run: |
           git submodule update --init --recursive
 
-      - name: Switch submodules to 'dev' branch
-        run: |
-          for sub in scripts res assistant; do
-            if [ -d "$sub" ]; then
-              echo "Checking out $sub to dev..."
-              cd "$sub"
-              git fetch origin
-              if git show-ref --verify --quiet refs/remotes/origin/dev; then
-                git checkout dev
-                git pull origin dev
-              else
-                echo "Submodule '$sub' has no 'dev' branch."
-              fi
-              cd ..
+          git submodule foreach --recursive '
+            echo "Updating submodule: $name"
+            git fetch origin
+            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
+              git checkout dev
+              git pull origin dev
             else
-              echo "Submodule directory '$sub' not found!"
+              echo "Branch dev not found for submodule $name"
             fi
-          done
+          '
 
       - name: Commit updated submodule references
         run: |
@@ -72,14 +64,14 @@ jobs:
           mkdir package
           rsync -a --exclude='.git' ./ package/
 
-          for sub in scripts res assistant; do
-            if [ -d "$sub" ]; then
-              echo "Including submodule: $sub"
-              rsync -a --exclude='.git' "$sub/" "package/$sub/"
-            else
-              echo "Skipping missing submodule: $sub"
-            fi
-          done
+          # Hole alle Submodule rekursiv mit Pfad
+          git submodule foreach --recursive '
+            fullpath=$(realpath .)
+            relpath=${fullpath#$(realpath "$toplevel")/}
+            echo "Including submodule: $relpath"
+            mkdir -p "$toplevel/package/$relpath"
+            rsync -a --exclude=".git" "$fullpath/" "$toplevel/package/$relpath/"
+          '
 
           cd package
           zip -r ../ddpc_alpha.zip . -x '*.git*' '*.github*' '*.vscode*' '*node_modules*'
