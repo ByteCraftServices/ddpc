@@ -1,47 +1,49 @@
-name: Clean and Init Submodules (manual)
+name: Clean Repo and Init Submodules
 
 on:
   workflow_dispatch:
 
 jobs:
-  clean-submodules:
+  clean-and-init:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main repo ohne Submodule
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: alpha
           fetch-depth: 0
           submodules: false
 
-      - name: Submodule URLs mit Token aktualisieren
+      - name: Update submodule URLs with token (automatisch aus .gitmodules)
         run: |
-          git config --file .gitmodules submodule.scripts.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.scripts.git"
-          git config --file .gitmodules submodule.res.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.res.git"
-          git config --file .gitmodules submodule.assistant.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.assistant.git"
+          # Token in URLs einfügen und gitmodules updaten
+          token="${{ secrets.PAT_TOKEN }}"
+          git config -f .gitmodules --get-regexp 'submodule\..*\.url' | while read key url; do
+            url_with_token="${url/https:\/\/github.com/https://${token}@github.com/}"
+            git config -f .gitmodules "$key" "$url_with_token"
+            echo "Updated $key"
+          done
           git submodule sync
 
       - name: Deinit alle Submodule
-        run: |
-          git submodule deinit -f --all || echo "Keine Submodule zum deinit"
+        run: git submodule deinit -f --all || echo "Keine Submodule zum deinit"
 
-      - name: Submodule-Cache löschen
+      - name: Submodule Cache löschen
         run: rm -rf .git/modules
 
       - name: Untracked Dateien und Ordner löschen
         run: git clean -fdx
 
       - name: Submodule neu initialisieren und updaten
-        run: |
-          git submodule update --init --recursive
+        run: git submodule update --init --recursive
 
       - name: Submodule auf dev-Branch setzen und pullen
         run: |
           git submodule foreach --recursive '
             if git show-ref --verify --quiet refs/heads/dev; then
-              git checkout dev;
-              git pull origin dev;
+              git checkout dev
+              git pull origin dev
             else
-              echo "Kein dev-Branch in $name";
+              echo "Kein dev-Branch in $name"
             fi
           '
