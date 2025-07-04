@@ -18,20 +18,36 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Switch submodules to 'dev' branch (recursive)
+      - name: Initialize and switch submodules to 'dev' branch (with logging)
         run: |
+          echo "🔄 Initializing submodules..."
           git submodule update --init --recursive
 
+          echo "🔍 Fetching and switching submodules to 'dev' branch..."
+
+          failed=0
+
           git submodule foreach --recursive '
-            echo "Updating submodule: $name"
+            echo ""
+            echo "📦 Submodule: $name"
+            git remote -v
             git fetch origin
-            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
+
+            if git show-ref --verify --quiet refs/remotes/origin/dev; then
+              echo "✅ dev branch found in $name. Checking out..."
               git checkout dev
               git pull origin dev
+              echo "✅ Switched to dev branch in $name"
             else
-              echo "Branch dev not found for submodule $name"
+              echo "❌ dev branch not found for submodule $name"
+              failed=1
             fi
           '
+
+          if [ "$failed" -ne 0 ]; then
+            echo "❗ One or more submodules failed to switch to the dev branch."
+            exit 1
+          fi
 
       - name: Commit updated submodule references
         run: |
@@ -49,10 +65,10 @@ jobs:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
         run: |
           if gh release view DEV &>/dev/null; then
-            echo "Deleting existing DEV release..."
+            echo "🗑️ Deleting existing DEV release..."
             gh release delete DEV --yes
           else
-            echo "No existing DEV release found."
+            echo "ℹ️ No existing DEV release found."
           fi
 
       - name: Create ZIP with full source including submodules
@@ -62,28 +78,4 @@ jobs:
           echo "$timestamp" > release_timestamp.txt
 
           mkdir package
-          rsync -a --exclude='.git' ./ package/
-
-          # Hole alle Submodule rekursiv mit Pfad
-          git submodule foreach --recursive '
-            fullpath=$(realpath .)
-            relpath=${fullpath#$(realpath "$toplevel")/}
-            echo "Including submodule: $relpath"
-            mkdir -p "$toplevel/package/$relpath"
-            rsync -a --exclude=".git" "$fullpath/" "$toplevel/package/$relpath/"
-          '
-
-          cd package
-          zip -r ../ddpc_alpha.zip . -x '*.git*' '*.github*' '*.vscode*' '*node_modules*'
-          cd ..
-
-      - name: Create new DEV release and upload ZIP
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-        run: |
-          timestamp=$(cat release_timestamp.txt)
-          release_name="alpha_${timestamp}"
-          echo "Creating release: $release_name"
-          gh release create DEV ddpc_alpha.zip \
-            --title "$release_name" \
-            --notes "Automatisch generiertes DEV Release vom $timestamp"
+          rsync -a --
