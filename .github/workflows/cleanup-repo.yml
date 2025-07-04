@@ -1,18 +1,25 @@
-name: Manual Clean and Checkout Submodules
+name: Clean and Init Submodules (manual)
 
 on:
-  workflow_dispatch:  # nur manuell startbar
+  workflow_dispatch:
 
 jobs:
   clean-submodules:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo ohne Submodule
+      - name: Checkout main repo ohne Submodule
         uses: actions/checkout@v4
         with:
+          ref: dev
           fetch-depth: 0
           submodules: false
+
+      - name: Submodule URLs mit Token aktualisieren
+        run: |
+          git config --file .gitmodules submodule.scripts.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.scripts.git"
+          git config --file .gitmodules submodule.res.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.res.git"
+          git config --file .gitmodules submodule.assistant.url "https://${{ secrets.PAT_TOKEN }}@github.com/ByteCraftServices/ddpc.assistant.git"
+          git submodule sync
 
       - name: Deinit alle Submodule
         run: |
@@ -24,15 +31,9 @@ jobs:
       - name: Untracked Dateien und Ordner löschen
         run: git clean -fdx
 
-      - name: Vollständig neu mit Submodulen auschecken
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-          token: ${{ secrets.PERSONAL_TOKEN }}
-
-      - name: Auf dev-Branch wechseln (Hauptrepo)
-        run: git checkout dev
+      - name: Submodule neu initialisieren und updaten
+        run: |
+          git submodule update --init --recursive
 
       - name: Submodule auf dev-Branch setzen und pullen
         run: |
