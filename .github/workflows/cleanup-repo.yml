@@ -1,15 +1,46 @@
-- name: Cleanup Submodules and Repo
-  run: |
-    echo "🧹 Cleaning up submodules and repo"
-    git submodule deinit -f --all
-    rm -rf .git/modules
-    git clean -fdx
+name: Manual Clean and Checkout Submodules
 
-- name: Checkout fresh with submodules
-  uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
-    submodules: recursive
-    token: ${{ secrets.PERSONAL_TOKEN }}
+on:
+  workflow_dispatch:  # nur manuell startbar
 
-# Danach dein weiterer Workflow, der Branch auf dev setzt etc.
+jobs:
+  clean-submodules:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo ohne Submodule
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Deinit alle Submodule
+        run: |
+          git submodule deinit -f --all || echo "Keine Submodule zum deinit"
+
+      - name: Submodule-Cache löschen
+        run: rm -rf .git/modules
+
+      - name: Untracked Dateien und Ordner löschen
+        run: git clean -fdx
+
+      - name: Vollständig neu mit Submodulen auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auf dev-Branch wechseln (Hauptrepo)
+        run: git checkout dev
+
+      - name: Submodule auf dev-Branch setzen und pullen
+        run: |
+          git submodule foreach --recursive '
+            if git show-ref --verify --quiet refs/heads/dev; then
+              git checkout dev;
+              git pull origin dev;
+            else
+              echo "Kein dev-Branch in $name";
+            fi
+          '
