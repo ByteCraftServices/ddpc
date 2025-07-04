@@ -51,7 +51,7 @@ jobs:
 
       - name: Create ZIP with full source including submodules
         run: |
-          zip -r full_source.zip . -x '*.git*'
+          zip -r ddpc_alpha.zip . -x '*.git*'
 
       - name: Create new DEV release and upload ZIP
         env:
