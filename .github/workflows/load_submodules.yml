@@ -1,19 +1,45 @@
+name: CI with private submodules
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main repo (no submodules)
+        uses: actions/checkout@v4
         with:
-          submodules: false
-          fetch-depth: 0
+          fetch-depth: 0          # Voller Clone nötig für Submodules
+          submodules: false       # Nicht automatisch auschecken
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - run: |
+      - name: Update submodule URLs to use token auth
+        run: |
+          echo "🔧 Adjusting submodule URLs in .gitmodules"
           git config -f .gitmodules --get-regexp url | while read key url; do
+            echo "🔗 Old URL: $url"
             new_url=${url/https:\/\/github.com/https:\/\/x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com}
+            echo "🔗 New URL: $new_url"
             git config -f .gitmodules "$key" "$new_url"
           done
           git submodule sync --recursive
-          git submodule update --init --recursive
 
-      - run: ls -la
+      - name: Initialize and update all submodules recursively
+        run: |
+          echo "📦 Initializing and updating submodules..."
+          git submodule update --init --recursive --depth=1
+
+      - name: Verify submodules are checked out
+        run: |
+          echo "📁 Listing root repo and submodules content"
+          ls -la
+          ls -la scripts
+          ls -la res
+          ls -la assistant
+
+      # Hier können weitere Build- oder Test-Schritte folgen
