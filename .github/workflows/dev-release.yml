@@ -18,29 +18,37 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: 📋 Show All Submodules
+      - name: 🔍 Show all submodules (initial state)
         run: |
-          echo "🔍 Listing all submodules:"
-          git config --file .gitmodules --get-regexp path | while read -r key path; do
-            url=$(git config --file .gitmodules --get "${key/path/url}")
-            echo " - $path ($url)"
-          done
+          echo "Listing submodules from .gitmodules:"
+          cat .gitmodules || echo "No .gitmodules found"
 
-      - name: 🔄 Switch all submodules to 'dev' branch (recursive)
+      - name: 🔄 Init & update all submodules recursively
         run: |
+          echo "Initializing all submodules recursively..."
           git submodule update --init --recursive
 
+          echo "✅ Submodules after init:"
+          git submodule status --recursive
+
+      - name: 🔀 Switch all submodules to 'dev' branch (if exists)
+        run: |
+          echo "📦 Updating submodules to 'dev' branches..."
+
           git submodule foreach --recursive '
-            echo "🔧 Updating submodule: $name"
+            echo ""
+            echo "📁 Submodule: $name"
+            echo "📍 Path: $path"
             git fetch origin
-            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
+            if git show-ref --verify --quiet refs/remotes/origin/dev; then
+              echo "✅ Branch 'dev' found. Checking out..."
               git checkout dev
               git pull origin dev
-              echo "✅ Checked out dev branch for $name"
             else
-              echo "⚠️ Branch dev not found for submodule $name"
+              echo "⚠️ Branch 'dev' not found in $name"
             fi
           '
+
 
       - name: 💾 Commit updated submodule references (if any)
         run: |
