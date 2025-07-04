@@ -17,7 +17,7 @@ jobs:
       - name: Update submodule URLs with token (automatisch aus .gitmodules)
         run: |
           # Token in URLs einfügen und gitmodules updaten
-          token="${{ secrets.PAT_TOKEN }}"
+          token="${{ secrets.PERSONAL_TOKEN }}"
           git config -f .gitmodules --get-regexp 'submodule\..*\.url' | while read key url; do
             url_with_token="${url/https:\/\/github.com/https://${token}@github.com/}"
             git config -f .gitmodules "$key" "$url_with_token"
