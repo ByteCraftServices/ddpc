@@ -18,11 +18,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Sync and update submodules
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --recursive
-
       - name: Switch submodules to 'dev' branch
         run: |
           git submodule foreach '
@@ -43,18 +38,6 @@ jobs:
           git add .
           git commit -m "Update submodules to dev branches" || echo "No changes to commit"
 
-      - name: Debug: List submodules and contents
-        run: |
-          echo "Submodule status:"
-          git submodule status
-          echo "Top-level directory listing:"
-          ls -la
-          echo "Contents of each submodule:"
-          for dir in */; do
-            echo "== $dir =="
-            ls -la "$dir"
-          done
-
       - name: Delete existing DEV release
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
@@ -68,7 +51,7 @@ jobs:
 
       - name: Create ZIP with full source including submodules
         run: |
-          zip -r full_source.zip . -x '*.git*'
+          zip -r ddpc_alpha.zip . -x '*.git*'
 
       - name: Create new DEV release and upload ZIP
         env:
@@ -77,6 +60,7 @@ jobs:
           timestamp=$(date +"%Y%m%d_%H%M%S")
           release_name="alpha_${timestamp}"
           echo "Creating release: $release_name"
-          gh release create DEV full_source.zip \
+          gh release create DEV ddpc_alpha.zip \
             --title "$release_name" \
-            --notes "Automatisch generiertes DEV Release vom $timestamp"
+            --notes "Automatisch generiertes DEV Release vom $timestamp" \
+  
