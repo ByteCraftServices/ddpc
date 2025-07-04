@@ -11,18 +11,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository with Submodules
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Switch submodules to 'dev' branch
+        run: |
+          git submodule foreach '
+            echo "Switching $name to dev branch"
+            git fetch origin dev
+            git checkout dev || echo "Branch dev not found in $name"
+            git pull origin dev || echo "Could not pull dev branch in $name"
+          '
 
       - name: Delete existing DEV releases
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
         run: |
           releases=$(gh release list --limit 100 --json tagName,name --jq '.[] | select(.tagName == "DEV") | .name')
-          for release in $releases; do
-            echo "Deleting release: $release"
+          if [ -n "$releases" ]; then
+            echo "Deleting existing DEV release(s)..."
             gh release delete DEV --yes
-          done
+          else
+            echo "No DEV release found to delete."
+          fi
 
       - name: Create new DEV release
         env:
