@@ -18,20 +18,28 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Switch submodules to 'dev' branch (recursive)
+      - name: Ensure submodules are initialized
         run: |
           git submodule update --init --recursive
 
-          git submodule foreach --recursive '
-            echo "Updating submodule: $name"
-            git fetch origin
-            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
-              git checkout dev
-              git pull origin dev
+      - name: Switch submodules to 'dev' branch
+        run: |
+          for sub in scripts res assistant; do
+            if [ -d "$sub" ]; then
+              echo "Checking out $sub to dev..."
+              cd "$sub"
+              git fetch origin
+              if git show-ref --verify --quiet refs/remotes/origin/dev; then
+                git checkout dev
+                git pull origin dev
+              else
+                echo "Submodule '$sub' has no 'dev' branch."
+              fi
+              cd ..
             else
-              echo "Branch dev not found for submodule $name"
+              echo "Submodule directory '$sub' not found!"
             fi
-          '
+          done
 
       - name: Commit updated submodule references
         run: |
@@ -64,12 +72,12 @@ jobs:
           mkdir package
           rsync -a --exclude='.git' ./ package/
 
-          git config --file .gitmodules --get-regexp path | while read -r key path; do
-            if [ -d "$path" ]; then
-              echo "Copying submodule: $path"
-              rsync -a --exclude='.git' "$path/" "package/$path/"
+          for sub in scripts res assistant; do
+            if [ -d "$sub" ]; then
+              echo "Including submodule: $sub"
+              rsync -a --exclude='.git' "$sub/" "package/$sub/"
             else
-              echo "Skipping missing submodule path: $path"
+              echo "Skipping missing submodule: $sub"
             fi
           done
 
@@ -83,7 +91,4 @@ jobs:
         run: |
           timestamp=$(cat release_timestamp.txt)
           release_name="alpha_${timestamp}"
-          echo "Creating release: $release_name"
-          gh release create DEV ddpc_alpha.zip \
-            --title "$release_name" \
-            --notes "Automatisch generiertes DEV Release vom $timestamp"
+          echo "Creating releas
