@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Ensure submodules are initialized
+      - name: Init & update all submodules (fallback safety)
         run: |
           git submodule update --init --recursive
 
