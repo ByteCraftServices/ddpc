@@ -62,4 +62,38 @@ jobs:
             echo "🧹 Deleting existing DEV release..."
             gh release delete DEV --yes
           else
-            echo "ℹ️ No ex
+            echo "ℹ️ No existing DEV release found."
+          fi
+
+      - name: 📦 Create ZIP with full source including submodules
+        run: |
+          timestamp=$(TZ=Europe/Vienna date +"%Y%m%d_%H%M%S")
+          echo "🕒 Using timestamp: $timestamp"
+          echo "$timestamp" > release_timestamp.txt
+
+          mkdir package
+          rsync -a --exclude='.git' ./ package/
+
+          git submodule foreach --recursive 'bash -c "
+            fullpath=\$(realpath .)
+            relpath=\${fullpath#\$(realpath \"\$toplevel\")/}
+            echo \"📂 Including submodule: \$relpath\"
+            mkdir -p \"\$toplevel/package/\$relpath\"
+            rsync -a --exclude=.git \"\$fullpath/\" \"\$toplevel/package/\$relpath/\"
+          "'
+
+          cd package
+          zip -r ../ddpc_alpha.zip . -x "*.git*" "*.github*" "*.vscode*" "*node_modules*"
+          cd ..
+          echo "✅ Created ddpc_alpha.zip"
+
+      - name: 🚀 Create new DEV release and upload ZIP
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          timestamp=$(cat release_timestamp.txt)
+          release_name="alpha_${timestamp}"
+          echo "📤 Creating release: $release_name"
+          gh release create DEV ddpc_alpha.zip \
+            --title "$release_name" \
+            --notes "Automatisch generiertes DEV Release vom $timestamp"
