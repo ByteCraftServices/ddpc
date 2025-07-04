@@ -62,5 +62,4 @@ jobs:
           echo "Creating release: $release_name"
           gh release create DEV ddpc_alpha.zip \
             --title "$release_name" \
-            --notes "Automatisch generiertes DEV Release vom $timestamp" \
-  
+            --notes "Automatisch generiertes DEV Release vom $timestamp"
