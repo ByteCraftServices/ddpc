@@ -1,34 +1,43 @@
-- name: Checkout main repo ohne Submodule
-  uses: actions/checkout@v4
-  with:
-    ref: alpha
-    fetch-depth: 0
-    submodules: false
+name: Clean Repo and Init Submodules
 
-- name: Temporäres URL-Rewriting mit Token
-  run: |
-    git config --global url."https://${{ secrets.PERSONAL_TOKEN }}@github.com/".insteadOf "https://github.com/"
+on:
+  workflow_dispatch:  # Manuell auslösbar über GitHub UI
 
-- name: Deinit alle Submodule
-  run: git submodule deinit -f --all || echo "Keine Submodule zum deinit"
+jobs:
+  clean-and-init:
+    runs-on: ubuntu-latest
 
-- name: Submodule Cache löschen
-  run: rm -rf .git/modules
+    steps:
+      - name: Checkout main repo ohne Submodule
+        uses: actions/checkout@v4
+        with:
+          ref: alpha
+          fetch-depth: 0
+          submodules: false
+      - name: Temporäres URL-Rewriting mit Token (für private Submodule)
+        run: |
+          git config --global url."https://${{ secrets.PERSONAL_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-- name: Untracked Dateien und Ordner löschen
-  run: git clean -fdx
+      - name: Deinit alle Submodule
+        run: git submodule deinit -f --all || echo "Keine Submodule zum deinit"
 
-- name: Submodule neu initialisieren und updaten
-  run: git submodule update --init --recursive
+      - name: Submodule Cache löschen
+        run: rm -rf .git/modules
 
-- name: Submodule auf dev-Branch setzen und pullen
-  run: |
-    git submodule foreach --recursive '
-      if git ls-remote --exit-code --heads origin dev > /dev/null; then
-        git fetch origin dev
-        git checkout dev
-        git pull origin dev
-      else
-        echo "Kein dev-Branch in $name"
-      fi
-    '
+      - name: Untracked Dateien und Ordner löschen
+        run: git clean -fdx
+
+      - name: Submodule neu initialisieren und updaten
+        run: git submodule update --init --recursive
+
+      - name: Submodule auf dev-Branch setzen und pullen
+        run: |
+          git submodule foreach --recursive '
+            if git ls-remote --exit-code --heads origin dev > /dev/null; then
+              git fetch origin dev
+              git checkout dev
+              git pull origin dev
+            else
+              echo "Kein dev-Branch in $name"
+            fi
+          '
