@@ -62,12 +62,10 @@ jobs:
           mkdir package
           rsync -a --exclude='.git' ./ package/
 
-          git submodule foreach --recursive '
-            fullpath=$(realpath $toplevel/$sm_path)
-            dest=package/$sm_path
-            mkdir -p $(dirname "$dest")
-            rsync -a --exclude=".git" "$fullpath/" "$dest/"
-          '
+          git config --file .gitmodules --get-regexp path | while read -r key path; do
+            echo "Copying submodule: $path"
+            rsync -a --exclude='.git' "$path/" "package/$path/"
+          done
 
           cd package
           zip -r ../ddpc_alpha.zip . -x '*.git*' '*.github*' '*.vscode*' '*node_modules*'
