@@ -6,113 +6,94 @@ on:
       - alpha
   workflow_dispatch:
 
+env:
+  REPO_NAME: ${{ github.repository }}
+  RELEASE_TAG: DEV
+
 jobs:
-  manage-release:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository with Submodules
+      - name: Checkout repo with submodules (token auth)
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: 🧼 Ensure clean submodule state
+      - name: Show submodules from .gitmodules
         run: |
+          echo "🔍 Submodules defined in .gitmodules:"
+          git config -f .gitmodules --name-only --get-regexp path | while read path_key; do
+            name=${path_key%.path}
+            url_key=${name}.url
+            path=$(git config -f .gitmodules --get "$path_key")
+            url=$(git config -f .gitmodules --get "$url_key")
+            echo " - Path: $path"
+            echo "   URL: $url"
+          done
+
+      - name: Update submodule URLs with token for authentication
+        run: |
+          echo "🔧 Updating submodule URLs with token for authentication"
+          git config -f .gitmodules --get-regexp url | while read key url; do
+            new_url=${url/https:\/\/github.com/https:\/\/x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com}
+            git config -f .gitmodules "$key" "$new_url"
+            echo "Updated $key to $new_url"
+          done
           git submodule sync --recursive
 
-      - name: 🧹 Clean up possible leftover submodules
+      - name: Initialize and update submodules
         run: |
-          git submodule deinit -f --all || true
-          rm -rf .git/modules/* || true
+          git submodule update --init --recursive
 
-      - name: 🔄 Init & update all submodules recursively
+      - name: Checkout 'dev' branch in submodules recursively
         run: |
-          echo "🔁 Initializing and updating all submodules recursively..."
-          git submodule update --init --force --recursive
-          
-          echo ""
-          echo "📋 Submodule list from .gitmodules:"
-          cat .gitmodules
-
-          echo ""
-          echo "📌 Currently initialized submodules:"
-          git submodule status --recursive
-
-          echo ""
-          echo "📁 All folders in repo root:"
-          ls -la
-
-      - name: 🔀 Switch all submodules to 'dev' branch (if exists)
-        run: |
-          echo "📦 Updating submodules to 'dev' branches..."
-
           git submodule foreach --recursive '
-            echo ""
             echo "📁 Submodule: $name"
-            echo "📍 Path: $path"
             git fetch origin
             if git show-ref --verify --quiet refs/remotes/origin/dev; then
-              echo "✅ Branch \"dev\" found. Checking out..."
+              echo "✅ Branch dev found in $name, checking out"
               git checkout dev
               git pull origin dev
             else
-              echo "⚠️ Branch \"dev\" not found in $name"
+              echo "⚠️ Branch dev not found in $name"
             fi
           '
 
-      - name: Commit updated submodule references
+      - name: Get current timestamp
+        id: timestamp
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [[ -n $(git status --porcelain) ]]; then
-            git add .
-            git commit -m "Update submodules to dev branches"
-          else
-            echo "ℹ️ No changes to commit"
-          fi
+          echo "timestamp=$(TZ=Europe/Vienna date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
 
-      - name: Delete existing DEV release
+      - name: Clean up existing DEV release if exists
+        run: |
+          if gh release view $RELEASE_TAG &>/dev/null; then
+            echo "🧹 Deleting existing $RELEASE_TAG release..."
+            gh release delete $RELEASE_TAG --yes
+          else
+            echo "ℹ️ No existing $RELEASE_TAG release found."
+          fi
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-        run: |
-          if gh release view DEV &>/dev/null; then
-            echo "🧹 Deleting existing DEV release..."
-            gh release delete DEV --yes
-          else
-            echo "ℹ️ No existing DEV release found."
-          fi
 
-      - name: Create ZIP with full source including submodules
+      - name: Create ZIP archive of repo (without .git)
         run: |
-          timestamp=$(TZ=Europe/Vienna date +"%Y%m%d_%H%M%S")
-          echo "Using timestamp: $timestamp"
-          echo "$timestamp" > release_timestamp.txt
-
+          zipfile="ddpc-${{ steps.timestamp.outputs.timestamp }}.zip"
+          echo "📦 Creating ZIP archive $zipfile"
           mkdir package
           rsync -a --exclude='.git' ./ package/
-
-          # Include all submodules recursively with path
-          git submodule foreach --recursive '
-            fullpath=$(realpath .)
-            relpath=${fullpath#$(realpath "$toplevel")/}
-            echo "Including submodule: $relpath"
-            mkdir -p "$toplevel/package/$relpath"
-            rsync -a --exclude=".git" "$fullpath/" "$toplevel/package/$relpath/"
-          '
-
           cd package
-          zip -r ../ddpc_alpha.zip . -x '*.git*' '*.github*' '*.vscode*' '*node_modules*'
+          zip -r ../$zipfile .
           cd ..
+          ls -lh $zipfile
 
-      - name: Create new DEV release and upload ZIP
+      - name: Create new DEV release with ZIP asset
+        run: |
+          gh release create $RELEASE_TAG ddpc-*.zip \
+            --title "DEV Release $RELEASE_TAG" \
+            --notes "Automated DEV release from branch alpha at ${{ steps.timestamp.outputs.timestamp }}" \
+            --prerelease
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-        run: |
-          timestamp=$(cat release_timestamp.txt)
-          release_name="alpha_${timestamp}"
-          echo "Creating release: $release_name"
-          gh release create DEV ddpc_alpha.zip \
-            --title "$release_name" \
-            --notes "Automatisch generiertes DEV Release vom $timestamp"
