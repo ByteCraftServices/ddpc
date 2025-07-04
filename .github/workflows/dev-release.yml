@@ -91,4 +91,7 @@ jobs:
         run: |
           timestamp=$(cat release_timestamp.txt)
           release_name="alpha_${timestamp}"
-          echo "Creating releas
+          echo "Creating release: $release_name"
+          gh release create DEV ddpc_alpha.zip \
+            --title "$release_name" \
+            --notes "Automatisch generiertes DEV Release vom $timestamp"
