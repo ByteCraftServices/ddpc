@@ -18,16 +18,18 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PERSONAL_TOKEN }}
 
-      - name: Switch submodules to 'dev' branch
+      - name: Switch submodules to 'dev' branch (recursive)
         run: |
-          git submodule foreach '
-            set -e
-            echo "Switching $name to dev branch"
-            if git fetch origin dev && git show-ref --verify --quiet refs/remotes/origin/dev; then
+          git submodule update --init --recursive
+
+          git submodule foreach --recursive '
+            echo "Updating submodule: $name"
+            git fetch origin
+            if git rev-parse --verify origin/dev >/dev/null 2>&1; then
               git checkout dev
               git pull origin dev
             else
-              echo "Branch dev not found in $name"
+              echo "Branch dev not found for submodule $name"
             fi
           '
 
@@ -63,8 +65,12 @@ jobs:
           rsync -a --exclude='.git' ./ package/
 
           git config --file .gitmodules --get-regexp path | while read -r key path; do
-            echo "Copying submodule: $path"
-            rsync -a --exclude='.git' "$path/" "package/$path/"
+            if [ -d "$path" ]; then
+              echo "Copying submodule: $path"
+              rsync -a --exclude='.git' "$path/" "package/$path/"
+            else
+              echo "Skipping missing submodule path: $path"
+            fi
           done
 
           cd package
