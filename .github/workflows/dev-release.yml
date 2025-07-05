@@ -1,0 +1,83 @@
+name: DEV Release Automation
+
+on:
+  push:
+    branches:
+      - alpha
+  workflow_dispatch:
+
+jobs:
+  manage-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository with Submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Sync and update submodules
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+      - name: Switch submodules to 'dev' branch
+        run: |
+          git submodule foreach '
+            echo "Switching $name to dev branch"
+            git fetch origin dev
+            if git show-ref --verify --quiet refs/remotes/origin/dev; then
+              git checkout dev
+              git pull origin dev
+            else
+              echo "Branch dev not found in $name" 
+            fi
+          '
+
+      - name: Commit updated submodule references
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update submodules to dev branches" || echo "No changes to commit"
+
+      - name: Debug - List submodules and contents
+        run: |
+          echo "Submodule status:"
+          git submodule status
+          echo "Top-level directory listing:"
+          ls -la
+          echo "Contents of each submodule:"
+          for dir in */; do
+            echo "== $dir =="
+            ls -la "$dir"
+          done
+
+      - name: Delete existing DEV release
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          if gh release view DEV &>/dev/null; then
+            echo "Deleting existing DEV release..."
+            gh release delete DEV --yes
+          else
+            echo "No existing DEV release found."
+          fi
+
+      - name: Create ZIP with full source including submodules
+        run: |
+          zip -r ddpc_alpha.zip . -x '*.git*'
+
+      - name: Create new DEV release and upload ZIP
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          timestamp=$(date +"%Y%m%d_%H%M%S")
+          release_name="alpha_${timestamp}"
+          echo "Creating release: $release_name"
+          gh release create DEV ddpc_alpha.zip \
+            --title "$release_name" \
+            --notes "Automatisch generiertes DEV Release vom $timestamp" \
+            --prerelease

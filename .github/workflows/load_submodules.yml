@@ -3,7 +3,8 @@ name: Checkout with Submodules
 on:
   push:
     branches:
-      - main
+      - alpha
+  workflow_dispatch:
   pull_request:
 
 jobs:
