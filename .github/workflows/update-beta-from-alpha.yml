@@ -1,19 +1,23 @@
-name: Create Beta Release on Merge to Beta
+name: Create Beta Release on PR to Beta
 
 on:
-  push:
+  pull_request:
     branches:
       - beta
+    types:
+      - closed  # Nur wenn der PR gemerged wurde
   workflow_dispatch:
 
 jobs:
   create-beta-release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code including submodules
+      - name: Checkout alpha branch
         uses: actions/checkout@v4
         with:
+          ref: alpha
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.PERSONAL_TOKEN }}
@@ -46,7 +50,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
           body: |
-            Automatic beta release created from push to beta.
+            Automatic beta release created from merged PR to beta.
             Version bumped from ${{ steps.get_version.outputs.LATEST_TAG }}.
           prerelease: true
           files: ddpc-beta.zip
