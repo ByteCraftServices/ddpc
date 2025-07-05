@@ -16,6 +16,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+          token: ${{ secrets.PERSONAL_TOKEN }}
 
       - name: Get latest version tag
         id: get_version
