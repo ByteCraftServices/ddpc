@@ -10,10 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout code including submodules
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required to get full git history + tags
+          fetch-depth: 0
+          submodules: recursive
 
       - name: Get latest version tag
         id: get_version
@@ -25,6 +26,17 @@ jobs:
           PATCH=$((PATCH + 1))
           NEXT_VERSION="v$MAJOR.$MINOR.$PATCH-beta"
           echo "RELEASE_TAG=$NEXT_VERSION" >> $GITHUB_ENV
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create release zip
+        run: |
+          zip -r ddpc-beta.zip . -x "*.git*" -x "ddpc-beta.zip"
+
+      - name: Upload release zip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddpc-beta
+          path: ddpc-beta.zip
 
       - name: Create GitHub Pre-release
         uses: softprops/action-gh-release@v2
@@ -35,6 +47,6 @@ jobs:
             Automatic beta release created from push to beta.
             Version bumped from ${{ steps.get_version.outputs.LATEST_TAG }}.
           prerelease: true
-          make_latest: false
+          files: ddpc-beta.zip
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
