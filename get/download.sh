@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load PATH_ROOT_DDPC from paths.conf
-source "$SCRIPT_DIR/paths.conf"
+#source "$SCRIPT_DIR/paths.conf"
+PATH_ROOT_DDPC="$HOME/ddpc"
 
 BRANCH="${1:-main}"
 VERSION="${2:-latest}"
@@ -156,7 +157,7 @@ if [[ -z "$EXTRACTED_ROOT" ]]; then
 	exit 1
 fi
 
-for dir in ddpc.res ddpc.assistant ddpc.scripts; do
+for dir in res assistant scripts; do
 	if [[ ! -d "$EXTRACTED_ROOT/$dir" ]]; then
 		echo "Erwarteter Ordner $dir fehlt im Download." >&2
 		exit 1
