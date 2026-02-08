@@ -12,27 +12,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout alpha branch
+      - name: Checkout alpha branch with submodules
         uses: actions/checkout@v4
         with:
           ref: alpha
-          # For some auto-versioning strategies (e.g. tags), you might want full history:
-          # fetch-depth: 0
+          submodules: recursive  # ✅ Submodules rekursiv laden
+          fetch-depth: 0
+          token: ${{ secrets.PERSONAL_TOKEN }}  # ✅ PAT für private Submodules
 
-      # --- Automatic versioning example using tag count ---
-      # This creates a version like 0.1.<number-of-tags-on-repo>
-      # You can replace this with any other scheme (e.g. reading from a file, semantic-release, etc.)
+      - name: Sync and update submodules
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+      # Optional: Submodules auf bestimmten Branch switchen
+      - name: Switch submodules to 'alpha' branch (optional)
+        run: |
+          git submodule foreach '
+            echo "Checking $name for alpha branch"
+            git fetch origin alpha || true
+            if git show-ref --verify --quiet refs/remotes/origin/alpha; then
+              git checkout alpha
+              git pull origin alpha
+            else
+              echo "Branch alpha not found in $name, staying on current branch"
+            fi
+          '
+
       - name: Determine version
         id: version
         run: |
-          # Example: version format 0.1.<tag-count>
           TAG_COUNT=$(git tag --list | wc -l | tr -d ' ')
           VERSION="0.1.${TAG_COUNT}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create alpha.zip
         run: |
-          zip -r alpha.zip .
+          zip -r alpha.zip . -x '*.git*'  # ✅ .git-Ordner ausschließen
 
       - name: Create GitHub pre-release
         uses: softprops/action-gh-release@v2
