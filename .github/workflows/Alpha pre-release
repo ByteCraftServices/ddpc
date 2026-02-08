@@ -1,0 +1,47 @@
+name: Alpha pre-release
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # required for creating releases and uploading assets
+
+jobs:
+  alpha_prerelease:
+    name: Create alpha pre-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout alpha branch
+        uses: actions/checkout@v4
+        with:
+          ref: alpha
+          # For some auto-versioning strategies (e.g. tags), you might want full history:
+          # fetch-depth: 0
+
+      # --- Automatic versioning example using tag count ---
+      # This creates a version like 0.1.<number-of-tags-on-repo>
+      # You can replace this with any other scheme (e.g. reading from a file, semantic-release, etc.)
+      - name: Determine version
+        id: version
+        run: |
+          # Example: version format 0.1.<tag-count>
+          TAG_COUNT=$(git tag --list | wc -l | tr -d ' ')
+          VERSION="0.1.${TAG_COUNT}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create alpha.zip
+        run: |
+          zip -r alpha.zip .
+
+      - name: Create GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Alpha v${{ steps.version.outputs.version }}
+          prerelease: true
+          target_commitish: alpha
+          files: |
+            alpha.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
