@@ -43,7 +43,7 @@ jobs:
         id: version
         run: |
           TAG_COUNT=$(git tag --list | wc -l | tr -d ' ')
-          VERSION="0.1.${TAG_COUNT}"
+          VERSION="2.0.${TAG_COUNT}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create alpha.zip
@@ -53,8 +53,8 @@ jobs:
       - name: Create GitHub pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Alpha v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}a
+          name: Alpha v${{ steps.version.outputs.version }}a
           prerelease: true
           target_commitish: alpha
           files: |
