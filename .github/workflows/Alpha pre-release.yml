@@ -43,7 +43,7 @@ jobs:
         id: version
         run: |
           TAG_COUNT=$(git tag --list | wc -l | tr -d ' ')
-          VERSION="2.0.{TAG_COUNT}"
+          VERSION="2.0.${TAG_COUNT}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create alpha.zip
