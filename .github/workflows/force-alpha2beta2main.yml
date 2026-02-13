@@ -1,0 +1,106 @@
+name: Force alpha -> beta -> main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote-and-rebase:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Configure git + GitHub CLI auth
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh auth status
+
+      - name: Create and merge PR alpha -> beta
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          set -e
+          git fetch origin alpha beta --prune
+
+          if [ "$(git rev-list --count origin/beta..origin/alpha)" -eq 0 ]; then
+            echo "No new commits to merge from alpha into beta"
+            exit 0
+          fi
+
+          PR_NUMBER="$(gh pr list --state open --base beta --head alpha --json number --jq '.[0].number')"
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_URL="$(gh pr create --base beta --head alpha --title 'Sync alpha into beta' --body 'Automated promotion: alpha -> beta')"
+            PR_NUMBER="${PR_URL##*/}"
+          fi
+
+          gh pr merge "$PR_NUMBER" --merge --admin
+
+          PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+          if [ "$PR_STATE" != "MERGED" ]; then
+            echo "PR alpha -> beta was not merged"
+            exit 1
+          fi
+
+      - name: Create and merge PR beta -> main
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          set -e
+          git fetch origin beta main --prune
+
+          if [ "$(git rev-list --count origin/main..origin/beta)" -eq 0 ]; then
+            echo "No new commits to merge from beta into main"
+            exit 0
+          fi
+
+          PR_NUMBER="$(gh pr list --state open --base main --head beta --json number --jq '.[0].number')"
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_URL="$(gh pr create --base main --head beta --title 'Sync beta into main' --body 'Automated promotion: beta -> main')"
+            PR_NUMBER="${PR_URL##*/}"
+          fi
+
+          gh pr merge "$PR_NUMBER" --merge --admin
+
+          PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+          if [ "$PR_STATE" != "MERGED" ]; then
+            echo "PR beta -> main was not merged"
+            exit 1
+          fi
+
+      - name: Rebase beta onto main, then alpha onto beta
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          set -e
+          git fetch origin alpha beta main --prune
+
+          git checkout -B beta origin/beta
+          if ! git rebase origin/main; then
+            git rebase --abort || true
+            echo "Rebase failed: beta onto main"
+            exit 1
+          fi
+          git push --force-with-lease origin beta
+
+          git fetch origin beta --prune
+          git checkout -B alpha origin/alpha
+          if ! git rebase origin/beta; then
+            git rebase --abort || true
+            echo "Rebase failed: alpha onto beta"
+            exit 1
+          fi
+          git push --force-with-lease origin alpha
