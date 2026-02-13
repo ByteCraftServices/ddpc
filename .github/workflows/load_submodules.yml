@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - '**'
+    branches-ignore:
+      - artifacts
   workflow_dispatch:
     inputs:
       branch:
         description: 'Optional: branch to build (default = selected/ref branch)'
         required: false
         default: ''
+
+permissions:
+  contents: write
 
 jobs:
   branch_artifact:
@@ -72,3 +77,40 @@ jobs:
         path: ${{ steps.target.outputs.safe_branch }}.zip
         if-no-files-found: error
         retention-days: 14
+
+    - name: Publish zip to static artifacts branch
+      env:
+        REPOSITORY: ${{ github.repository }}
+        GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+      run: |
+        set -e
+        ZIP_NAME="${{ steps.target.outputs.safe_branch }}.zip"
+        PUBLISH_DIR="$(mktemp -d)"
+
+        git init "$PUBLISH_DIR"
+        cd "$PUBLISH_DIR"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+
+        git fetch --depth 1 origin artifacts || true
+        if git show-ref --verify --quiet refs/remotes/origin/artifacts; then
+          git checkout -B artifacts refs/remotes/origin/artifacts
+        else
+          git checkout --orphan artifacts
+          git rm -rf . || true
+        fi
+
+        cp "$GITHUB_WORKSPACE/$ZIP_NAME" "$ZIP_NAME"
+        git add "$ZIP_NAME"
+
+        if git diff --cached --quiet; then
+          echo "No changes to publish for $ZIP_NAME"
+        else
+          git commit -m "Update $ZIP_NAME"
+          git push origin artifacts
+        fi
+
+    - name: Show static download link
+      run: |
+        echo "Static download URL: https://raw.githubusercontent.com/${{ github.repository }}/artifacts/${{ steps.target.outputs.safe_branch }}.zip"
