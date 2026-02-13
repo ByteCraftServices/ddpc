@@ -2,9 +2,7 @@ name: Branch Artifact Build
 
 on:
   push:
-    branches:
-      - '**'
-      branches: [main, alpha, beta]
+    branches: [main, alpha, beta]
   workflow_dispatch:
 
 permissions:
