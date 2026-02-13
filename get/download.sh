@@ -186,6 +186,10 @@ pick_extracted_root() {
 if ! EXTRACTED_ROOT="$(pick_extracted_root)"; then
   echo "Konnte entpackten Inhalt nicht eindeutig finden. Debug:" >&2
   find "$WORK_DIR" -maxdepth 2 -type d -print >&2 || true
+  echo "Inhalt von $WORK_DIR:" >&2
+  ls -l "$WORK_DIR" >&2 || true
+  echo "Inhalt von $WORK_DIR (rekursiv):" >&2
+  ls -lR "$WORK_DIR" >&2 || true
   exit 1
 fi
 # ---- FIX END ----
@@ -193,6 +197,10 @@ fi
 for dir in "${EXPECTED_DIRS[@]}"; do
   if [[ ! -d "$EXTRACTED_ROOT/$dir" ]]; then
     echo "Erwarteter Ordner $dir fehlt im Download. $EXTRACTED_ROOT/$dir" >&2
+    echo "Debug: Inhalt von $EXTRACTED_ROOT:" >&2
+    ls -l "$EXTRACTED_ROOT" >&2 || true
+    echo "Debug: Inhalt von $EXTRACTED_ROOT/$dir (falls vorhanden):" >&2
+    ls -l "$EXTRACTED_ROOT/$dir" >&2 || true
     exit 1
   fi
   rm -rf "$PATH_ROOT_DDPC/$dir"
