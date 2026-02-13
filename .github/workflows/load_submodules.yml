@@ -7,11 +7,6 @@ on:
     branches-ignore:
       - artifacts
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Optional: branch to build (default = selected/ref branch)'
-        required: false
-        default: ''
 
 permissions:
   contents: write
@@ -24,14 +19,9 @@ jobs:
     - name: Determine target branch
       id: target
       env:
-        EVENT_NAME: ${{ github.event_name }}
         REF_NAME: ${{ github.ref_name }}
-        MANUAL_BRANCH: ${{ github.event.inputs.branch }}
       run: |
         BRANCH="$REF_NAME"
-        if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$MANUAL_BRANCH" ]; then
-          BRANCH="$MANUAL_BRANCH"
-        fi
 
         SAFE_BRANCH="${BRANCH//\//-}"
 
