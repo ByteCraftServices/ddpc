@@ -1,20 +1,42 @@
-name: Alpha Artifact Build
+name: Branch Artifact Build
 
 on:
   push:
     branches:
-      - alpha
+      - '**'
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Optional: branch to build (default = selected/ref branch)'
+        required: false
+        default: ''
 
 jobs:
-  alpha_artifact:
+  branch_artifact:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout alpha branch with submodules
+    - name: Determine target branch
+      id: target
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        REF_NAME: ${{ github.ref_name }}
+        MANUAL_BRANCH: ${{ github.event.inputs.branch }}
+      run: |
+        BRANCH="$REF_NAME"
+        if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$MANUAL_BRANCH" ]; then
+          BRANCH="$MANUAL_BRANCH"
+        fi
+
+        SAFE_BRANCH="${BRANCH//\//-}"
+
+        echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+        echo "safe_branch=$SAFE_BRANCH" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout target branch with submodules
       uses: actions/checkout@v4
       with:
-        ref: alpha
+        ref: ${{ steps.target.outputs.branch }}
         submodules: recursive
         fetch-depth: 0
         token: ${{ secrets.PERSONAL_TOKEN }}
@@ -24,27 +46,29 @@ jobs:
         git submodule sync --recursive
         git submodule update --init --recursive
 
-    - name: Switch submodules to 'alpha' branch (optional)
+    - name: Switch submodules to target branch (optional)
       run: |
         git submodule foreach '
-          echo "Checking $name for alpha branch"
-          git fetch origin alpha || true
-          if git show-ref --verify --quiet refs/remotes/origin/alpha; then
-            git checkout alpha
-            git pull origin alpha
+          BRANCH="${{ steps.target.outputs.branch }}"
+          echo "Checking $name for $BRANCH branch"
+          git fetch origin "$BRANCH" || true
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
           else
-            echo "Branch alpha not found in $name, staying on current branch"
+            echo "Branch $BRANCH not found in $name, staying on current branch"
           fi
         '
 
-    - name: Create alpha.zip
+    - name: Create branch zip archive
       run: |
-        zip -r alpha.zip . -x '*.git*'
+        ZIP_NAME="${{ steps.target.outputs.safe_branch }}.zip"
+        zip -r "$ZIP_NAME" . -x '*.git*'
 
-    - name: Upload alpha.zip artifact
+    - name: Upload branch zip artifact
       uses: actions/upload-artifact@v4
       with:
-        name: alpha-zip
-        path: alpha.zip
+        name: ${{ steps.target.outputs.safe_branch }}-zip
+        path: ${{ steps.target.outputs.safe_branch }}.zip
         if-no-files-found: error
         retention-days: 14
