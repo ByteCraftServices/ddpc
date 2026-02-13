@@ -1,21 +1,50 @@
-name: Checkout with Submodules
+name: Alpha Artifact Build
 
 on:
   push:
     branches:
       - alpha
   workflow_dispatch:
-  pull_request:
 
 jobs:
-  build:
+  alpha_artifact:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository including submodules
+    - name: Checkout alpha branch with submodules
       uses: actions/checkout@v4
       with:
-        submodules: recursive  # Das sorgt dafür, dass Submodule automatisch geholt werden
-        fetch-depth: 0         # Voller Clone, damit Submodule richtig funktionieren
-        token: ${{ secrets.PERSONAL_TOKEN }}  # Hier dein PAT Secret verwenden
-    # Hier kannst du dann weitere Schritte hinzufügen, z.B. Build, Tests, etc.
+        ref: alpha
+        submodules: recursive
+        fetch-depth: 0
+        token: ${{ secrets.PERSONAL_TOKEN }}
+
+    - name: Sync and update submodules
+      run: |
+        git submodule sync --recursive
+        git submodule update --init --recursive
+
+    - name: Switch submodules to 'alpha' branch (optional)
+      run: |
+        git submodule foreach '
+          echo "Checking $name for alpha branch"
+          git fetch origin alpha || true
+          if git show-ref --verify --quiet refs/remotes/origin/alpha; then
+            git checkout alpha
+            git pull origin alpha
+          else
+            echo "Branch alpha not found in $name, staying on current branch"
+          fi
+        '
+
+    - name: Create alpha.zip
+      run: |
+        zip -r alpha.zip . -x '*.git*'
+
+    - name: Upload alpha.zip artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: alpha-zip
+        path: alpha.zip
+        if-no-files-found: error
+        retention-days: 14
