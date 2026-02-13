@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - '**'
-    branches-ignore:
-      - artifacts
+      branches: [main, alpha, beta]
   workflow_dispatch:
 
 permissions:
