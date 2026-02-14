@@ -21,8 +21,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load PATH_ROOT_DDPC from paths.conf
-#source "$SCRIPT_DIR/paths.conf"
-PATH_ROOT_DDPC="$HOME/ddpc"
+source "$HOME/ddpc/scripts/config/.local/paths.conf"
+#PATH_ROOT_DDPC="$HOME/ddpc"
 
 BRANCH="${1:-main}"
 VERSION="${2:-latest}"

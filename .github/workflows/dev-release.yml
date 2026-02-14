@@ -1,9 +1,9 @@
 name: DEV Release Automation
 
 on:
-  push:
-    branches:
-      - alpha
+  # push:
+  #   branches:
+  #     - alpha
   workflow_dispatch:
 
 jobs:

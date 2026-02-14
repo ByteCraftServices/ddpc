@@ -65,39 +65,37 @@ jobs:
         if-no-files-found: error
         retention-days: 14
 
-    - name: Publish zip to static artifacts branch
+    - name: Create GitHub Release and upload ZIP
+      env:
+        GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        ZIP_NAME: ${{ steps.target.outputs.safe_branch }}.zip
+        REPOSITORY: ${{ github.repository }}
+      run: |
+        set -e
+        gh release create $BRANCH "$ZIP_NAME" --repo "$REPOSITORY" --title "Automated ZIP for $BRANCH" --notes "Automated build artifact for $BRANCH branch."
+
+    - name: Show static download link
+      env:
+        REPOSITORY: ${{ github.repository }}
+        ZIP_NAME: ${{ steps.target.outputs.safe_branch }}.zip
+      run: |
+        echo "Static download URL: https://github.com/${REPOSITORY}/releases/download/channel/${ZIP_NAME}"
+
+    - name: Delete artifacts branch
       env:
         REPOSITORY: ${{ github.repository }}
         GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
       run: |
         set -e
-        ZIP_NAME="${{ steps.target.outputs.safe_branch }}.zip"
-        PUBLISH_DIR="$(mktemp -d)"
-
-        git init "$PUBLISH_DIR"
-        cd "$PUBLISH_DIR"
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
-
-        git fetch --depth 1 origin artifacts || true
-        if git show-ref --verify --quiet refs/remotes/origin/artifacts; then
-          git checkout -B artifacts refs/remotes/origin/artifacts
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repo_tmp
+        cd repo_tmp
+        if git show-ref --verify --quiet refs/heads/artifacts; then
+          git push origin --delete artifacts
+          echo "artifacts branch deleted."
         else
-          git checkout --orphan artifacts
-          git rm -rf . || true
+          echo "artifacts branch does not exist."
         fi
-
-        cp "$GITHUB_WORKSPACE/$ZIP_NAME" "$ZIP_NAME"
-        git add "$ZIP_NAME"
-
-        if git diff --cached --quiet; then
-          echo "No changes to publish for $ZIP_NAME"
-        else
-          git commit -m "Update $ZIP_NAME"
-          git push origin artifacts
-        fi
-
-    - name: Show static download link
-      run: |
-        echo "Static download URL: https://raw.githubusercontent.com/${{ github.repository }}/artifacts/${{ steps.target.outputs.safe_branch }}.zip"
+        cd ..
+        rm -rf repo_tmp
