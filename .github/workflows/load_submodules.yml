@@ -72,7 +72,7 @@ jobs:
         REPOSITORY: ${{ github.repository }}
       run: |
         set -e
-        gh release create $BRANCH "$ZIP_NAME" --repo "$REPOSITORY" --title "Automated ZIP for $BRANCH" --notes "Automated build artifact for $BRANCH branch."
+        gh release create ${{ steps.target.outputs.safe_branch }} "$ZIP_NAME" --repo "$REPOSITORY" --title "Automated ZIP for ${{ steps.target.outputs.safe_branch }}" --notes "Automated build artifact for ${{ steps.target.outputs.branch }} branch."
 
     - name: Show static download link
       env:
