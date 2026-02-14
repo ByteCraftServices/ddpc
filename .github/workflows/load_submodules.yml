@@ -101,3 +101,22 @@ jobs:
     - name: Show static download link
       run: |
         echo "Static download URL: https://raw.githubusercontent.com/${{ github.repository }}/artifacts/${{ steps.target.outputs.safe_branch }}.zip"
+
+    - name: Delete artifacts branch
+      env:
+        REPOSITORY: ${{ github.repository }}
+        GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+      run: |
+        set -e
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repo_tmp
+        cd repo_tmp
+        if git show-ref --verify --quiet refs/heads/artifacts; then
+          git push origin --delete artifacts
+          echo "artifacts branch deleted."
+        else
+          echo "artifacts branch does not exist."
+        fi
+        cd ..
+        rm -rf repo_tmp
