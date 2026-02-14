@@ -32,6 +32,7 @@ jobs:
           PATCH=$((PATCH + 1))
           NEXT_VERSION="v$MAJOR.$MINOR.$PATCH-beta"
           echo "RELEASE_TAG=$NEXT_VERSION" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Create release zip
@@ -47,8 +48,8 @@ jobs:
       - name: Create GitHub Pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: Release ${{ env.RELEASE_TAG }}
+          tag_name: ${{ steps.get_version.outputs.RELEASE_TAG }}
+          name: Release ${{ steps.get_version.outputs.RELEASE_TAG }}
           body: |
             Automatic beta release created from merged PR to beta.
             Version bumped from ${{ steps.get_version.outputs.LATEST_TAG }}.
