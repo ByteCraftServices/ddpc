@@ -1,6 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure jq is installed
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq wird installiert..."
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update && sudo apt-get install -y jq
+  elif command -v brew >/dev/null 2>&1; then
+    brew install jq
+  elif command -v pacman >/dev/null 2>&1; then
+    sudo pacman -S --noconfirm jq
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y jq
+  else
+    echo "jq konnte nicht automatisch installiert werden. Bitte installieren Sie jq manuell." >&2
+    exit 1
+  fi
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load PATH_ROOT_DDPC from paths.conf
