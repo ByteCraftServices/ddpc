@@ -65,21 +65,34 @@ jobs:
         if-no-files-found: error
         retention-days: 14
 
-    - name: Create GitHub Release and upload ZIP
-      env:
-        GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-        ZIP_NAME: ${{ steps.target.outputs.safe_branch }}.zip
-        REPOSITORY: ${{ github.repository }}
-      run: |
-        set -e
-        gh release create ${{ steps.target.outputs.safe_branch }} "$ZIP_NAME" --repo "$REPOSITORY" --title "Automated ZIP for ${{ steps.target.outputs.safe_branch }}" --notes "Automated build artifact for ${{ steps.target.outputs.branch }} branch."
+      - name: Delete existing alpha release if present
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -e
+          if gh release view alpha --repo "$REPOSITORY" > /dev/null 2>&1; then
+            gh release delete alpha --repo "$REPOSITORY" -y
+            echo "Deleted existing release 'alpha'"
+          else
+            echo "No existing release 'alpha' found."
+          fi
+
+      - name: Create GitHub Release and upload ZIP
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+          ZIP_NAME: ${{ steps.target.outputs.safe_branch }}.zip
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -e
+          gh release create alpha "$ZIP_NAME" --repo "$REPOSITORY" --title "Automated ZIP for alpha" --notes "Automated build artifact for alpha branch."
 
     - name: Show static download link
       env:
         REPOSITORY: ${{ github.repository }}
         ZIP_NAME: ${{ steps.target.outputs.safe_branch }}.zip
       run: |
-        echo "Static download URL: https://github.com/${REPOSITORY}/releases/download/channel/${ZIP_NAME}"
+        echo "Static download URL: https://github.com/${REPOSITORY}/releases/download/tag/${ZIP_NAME}"
 
     - name: Delete artifacts branch
       env:
